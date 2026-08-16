@@ -269,12 +269,18 @@ func (s *MemoryStore) PromoteNextQueued(equipmentID string, now time.Time) (doma
 	var best *domain.EquipmentClaim
 	bestID := ""
 	for id, c := range s.claims {
-		if c.EquipmentID == equipmentID && c.Status == domain.ClaimStatusQueued {
-			if best == nil || c.Beats(*best) {
-				cc := c
-				best = &cc
-				bestID = id
-			}
+		if c.EquipmentID != equipmentID || c.Status != domain.ClaimStatusQueued {
+			continue
+		}
+		// A cross-station request is only entitled to the equipment once a
+		// dispatcher has approved it, so it must stay in the queue until then.
+		if c.CrossStation && !c.DispatcherApproved {
+			continue
+		}
+		if best == nil || c.Beats(*best) {
+			cc := c
+			best = &cc
+			bestID = id
 		}
 	}
 	if best == nil {
